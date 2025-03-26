@@ -34,6 +34,12 @@ impl Body {
         self.acceleration += force / self.mass;
     }
 
+    /// Clear all forces acting on the body.
+    fn clear_forces(&mut self) {
+        self.velocity *= 0.0;
+        self.acceleration *= 0.0;
+    }
+
     /// Update the body's position based on its velocity and acceleration.
     fn update(&mut self) {
         self.velocity += self.acceleration;
@@ -49,34 +55,35 @@ trait Bodied {
     /// Get a mutable reference to the body.
     fn body_mut(&mut self) -> &mut Body;
 
-    /// Get the position of the body.
-    fn position(&self) -> Vector2 {
-        self.body().position
-    }
-
-    /// Get the velocity of the body.
-    fn velocity(&self) -> Vector2 {
-        self.body().velocity
-    }
-
-    /// Get the acceleration of the body.
-    fn acceleration(&self) -> Vector2 {
-        self.body().acceleration
-    }
-
-    /// Get the mass of the body.
-    fn mass(&self) -> f32 {
-        self.body().mass
-    }
-
     /// Apply a force to the body.
     fn apply_force(&mut self, force: Vector2) {
         self.body_mut().apply_force(force);
     }
 
+    /// Clear all forces acting on the body.
+    fn clear_forces(&mut self) {
+        self.body_mut().clear_forces();
+    }
+
     /// Update the body's position based on its velocity and acceleration.
     fn update(&mut self) {
         self.body_mut().update();
+    }
+
+    fn position(&self) -> Vector2 {
+        self.body().position
+    }
+
+    fn velocity(&self) -> Vector2 {
+        self.body().velocity
+    }
+
+    fn acceleration(&self) -> Vector2 {
+        self.body().acceleration
+    }
+
+    fn mass(&self) -> f32 {
+        self.body().mass
     }
 }
 
@@ -123,15 +130,15 @@ impl Jetman {
 
     fn draw(&self, d: &mut RaylibDrawHandle) {
         let position = self.body.position;
+        let dir = vector_from_angle(self.heading);
+        let tip = position + dir * 8.0;
         d.draw_circle_v(position, 10.0, Color::from_hex("807CF4").unwrap());
         d.draw_circle_lines(position.x as i32, position.y as i32, 10.0, Color::from_hex("3524E3").unwrap());
-        let tip = position + vector_from_angle(self.heading) * 8.0;
         d.draw_ellipse(tip.x as i32, tip.y as i32, 4.0, 4.0, Color::WHITESMOKE);
         if self.thrusting > 0 {
             // draw an orange flame (an ellipse) at the back of the jetman
-            let flame = position - vector_from_angle(self.heading) * 10.0;
+            let flame = position - dir * 10.0;
             d.draw_ellipse(flame.x as i32, flame.y as i32, 4.0, 8.0, Color::ORANGE);
-            
         }
     }
 }
@@ -190,35 +197,41 @@ impl World {
         }
     }
 
-    fn update(&mut self, is_space_down: bool, is_left_down: bool, is_right_down: bool) {
-        if is_space_down {
+    fn update(&mut self, input: &InputState) {
+        if input.thrust {
             self.jetman.apply_thrust();
         }
-        if is_left_down {
+        if input.turn_left {
             self.jetman.turn_left();
         }
-        if is_right_down {
+        if input.turn_right {
             self.jetman.turn_right();
         }
     
         // Apply gravity to Jetman
         self.jetman.apply_force(self.gravity);
     
-        // Apply gravity to items and check for linking
+        // Check for linking with items
+        let jetman_pos = self.jetman.position();
         for (id, item) in self.items.iter_mut().enumerate() {
-            let diff = item.position() - self.jetman.position();
+            let diff = item.position() - jetman_pos;
             let distance = diff.length();
             if distance < self.jetman.link_distance {
                 self.jetman.linked_item = Some(ItemId(id));
             }
-    
-            item.apply_force(self.gravity);
+        }
+
+        // Check for severing link
+        if input.sever_link {
+            if let Some(item_id) = self.jetman.linked_item {
+                self.jetman.linked_item = None;
+                self.items[item_id.0].clear_forces();
+            }
         }
     
         // Enforce rigid connection if Jetman is linked to an item
         if let Some(ItemId(id)) = self.jetman.linked_item {
             let item = &mut self.items[id];
-            let jetman_pos = self.jetman.position();
             let item_pos = item.position();
             let delta = item_pos - jetman_pos;
             let distance = delta.length();
@@ -261,8 +274,26 @@ impl World {
         }
         self.jetman.draw(d);
         if let Some(item_id) = self.jetman.linked_item {
-            let item = &self.items[item_id.0 as usize];
+            let item = &self.items[item_id.0];
             d.draw_line_ex(self.jetman.position(), item.position(), 3.0, Color::YELLOWGREEN);
+        }
+    }
+}
+
+struct InputState {
+    thrust: bool,
+    turn_left: bool,
+    turn_right: bool,
+    sever_link: bool,
+}
+
+impl InputState {
+    fn from_raylib(rl: &RaylibHandle) -> Self {
+        InputState {
+            thrust: rl.is_key_down(KeyboardKey::KEY_SPACE),
+            turn_left: rl.is_key_down(KeyboardKey::KEY_LEFT),
+            turn_right: rl.is_key_down(KeyboardKey::KEY_RIGHT),
+            sever_link: rl.is_key_pressed(KeyboardKey::KEY_S),
         }
     }
 }
@@ -278,11 +309,9 @@ fn main() {
     let mut world = World::new();
 
     while !rl.window_should_close() {
-        let is_space_down = rl.is_key_down(KeyboardKey::KEY_SPACE);
-        let is_left_down = rl.is_key_down(KeyboardKey::KEY_LEFT);
-        let is_right_down = rl.is_key_down(KeyboardKey::KEY_RIGHT);
+        let input = InputState::from_raylib(&rl);
         let mut d = rl.begin_drawing(&thread);
-        world.update(is_space_down, is_left_down, is_right_down);
+        world.update(&input);
         world.draw(&mut d);
     }
 }
