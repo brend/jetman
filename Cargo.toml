@@ -1,0 +1,12 @@
+[package]
+name = "jetman"
+version = "0.1.0"
+edition = "2024"
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
+
+[dependencies]
+raylib = "5.0.0"
+rand = "0.8.4"
