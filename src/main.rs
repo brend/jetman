@@ -86,6 +86,7 @@ struct ItemId(usize);
 struct Jetman {
     body: Body,
     heading: f32,
+    link_distance: f32,
     linked_item: Option<ItemId>,
 }
 
@@ -94,6 +95,7 @@ impl Jetman {
         Jetman {
             body: Body::new(Vector2::new(200.0, 200.0), 1.0),
             heading: 0.0,
+            link_distance: 50.0,
             linked_item: None,
         }
     }
@@ -142,7 +144,10 @@ impl Item {
     }
 
     fn draw(&self, d: &mut RaylibDrawHandle) {
-        d.draw_rectangle(self.body.position.x as i32 - 15, self.body.position.y as i32 - 10, 30, 20, Color::LIGHTGRAY);
+        d.draw_rectangle(
+            self.body.position.x as i32 - 15, 
+            self.body.position.y as i32 - 10, 
+            30, 20, Color::LIGHTGRAY);
     }
 }
 
@@ -181,18 +186,56 @@ impl World {
         if is_right_down {
             self.jetman.turn_right();
         }
-
+    
+        // Apply gravity to Jetman
         self.jetman.apply_force(self.gravity);
-        self.jetman.update();
-        
+    
+        // Apply gravity to items and check for linking
         for (id, item) in self.items.iter_mut().enumerate() {
             let diff = item.position() - self.jetman.position();
             let distance = diff.length();
-            if distance < 20.0 {
+            if distance < self.jetman.link_distance {
                 self.jetman.linked_item = Some(ItemId(id));
             }
-
+    
             item.apply_force(self.gravity);
+        }
+    
+        // Enforce rigid connection if Jetman is linked to an item
+        if let Some(ItemId(id)) = self.jetman.linked_item {
+            let item = &mut self.items[id];
+            let jetman_pos = self.jetman.position();
+            let item_pos = item.position();
+            let delta = item_pos - jetman_pos;
+            let distance = delta.length();
+
+            let rest_length = 10.0;
+            if distance != 0.0 {
+                let direction = delta / distance;
+                let correction = direction * (distance - rest_length);
+
+                // Calculate correction ratio based on masses
+                let total_mass = self.jetman.mass() + item.mass();
+                let jetman_ratio = item.mass() / total_mass;
+                let item_ratio = self.jetman.mass() / total_mass;
+
+                // Correct positions
+                self.jetman.body_mut().position += correction * jetman_ratio;
+                item.body_mut().position -= correction * item_ratio;
+
+                // Optional: also correct velocity along the axis to enforce rigid link
+                let relative_velocity = item.velocity() - self.jetman.velocity();
+                let projected_velocity = relative_velocity.dot(direction);
+                let velocity_correction = direction * projected_velocity;
+
+                self.jetman.body_mut().velocity += velocity_correction * jetman_ratio;
+                item.body_mut().velocity -= velocity_correction * item_ratio;
+            }
+        }
+    
+        // Update physics
+        self.jetman.update();
+        for item in self.items.iter_mut() {
             item.update();
         }
     }
@@ -205,7 +248,7 @@ impl World {
         self.jetman.draw(d);
         if let Some(item_id) = self.jetman.linked_item {
             let item = &self.items[item_id.0 as usize];
-            d.draw_line_v(self.jetman.position(), item.position(), Color::GREEN);
+            d.draw_line_ex(self.jetman.position(), item.position(), 3.0, Color::YELLOWGREEN);
         }
     }
 }
