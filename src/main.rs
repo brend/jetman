@@ -1,7 +1,7 @@
 use raylib::prelude::*;
 
-const SCREEN_WIDTH: i32 = 400;
-const SCREEN_HEIGHT: i32 = 400;
+const SCREEN_WIDTH: i32 = 800;
+const SCREEN_HEIGHT: i32 = 600;
 
 const TITLE: &str = "Jetman";
 
@@ -9,13 +9,82 @@ fn vector_from_angle(angle: f32) -> Vector2 {
     Vector2::new(angle.cos(), angle.sin())
 }
 
+/// A physics body.
+#[derive(Clone, Copy)]
+struct Body {
+    position: Vector2,
+    velocity: Vector2,
+    acceleration: Vector2,
+    mass: f32,
+}
+
+impl Body {
+    /// Create a new body.
+    fn new(position: Vector2, mass: f32) -> Self {
+        Body {
+            position,
+            velocity: Vector2::new(0.0, 0.0),
+            acceleration: Vector2::new(0.0, 0.0),
+            mass,
+        }
+    }
+
+    /// Apply a force to the body.
+    fn apply_force(&mut self, force: Vector2) {
+        self.acceleration += force / self.mass;
+    }
+
+    /// Update the body's position based on its velocity and acceleration.
+    fn update(&mut self) {
+        self.velocity += self.acceleration;
+        self.position += self.velocity;
+        self.acceleration *= 0.0;
+    }
+}
+
+trait Bodied {
+    /// Get a reference to the body.
+    fn body(&self) -> &Body;
+
+    /// Get a mutable reference to the body.
+    fn body_mut(&mut self) -> &mut Body;
+
+    /// Get the position of the body.
+    fn position(&self) -> Vector2 {
+        self.body().position
+    }
+
+    /// Get the velocity of the body.
+    fn velocity(&self) -> Vector2 {
+        self.body().velocity
+    }
+
+    /// Get the acceleration of the body.
+    fn acceleration(&self) -> Vector2 {
+        self.body().acceleration
+    }
+
+    /// Get the mass of the body.
+    fn mass(&self) -> f32 {
+        self.body().mass
+    }
+
+    /// Apply a force to the body.
+    fn apply_force(&mut self, force: Vector2) {
+        self.body_mut().apply_force(force);
+    }
+
+    /// Update the body's position based on its velocity and acceleration.
+    fn update(&mut self) {
+        self.body_mut().update();
+    }
+}
+
 #[derive(Clone, Copy)]
 struct ItemId(usize);
 
 struct Jetman {
-    position: Vector2,
-    velocity: Vector2,
-    acceleration: Vector2,
+    body: Body,
     heading: f32,
     linked_item: Option<ItemId>,
 }
@@ -23,21 +92,15 @@ struct Jetman {
 impl Jetman {
     fn new() -> Self {
         Jetman {
-            position: Vector2::new(SCREEN_WIDTH as f32 / 2.0, SCREEN_HEIGHT as f32 / 2.0),
-            velocity: Vector2::new(0.0, 0.0),
-            acceleration: Vector2::new(0.0, 0.0),
+            body: Body::new(Vector2::new(200.0, 200.0), 1.0),
             heading: 0.0,
             linked_item: None,
         }
     }
 
-    fn apply_force(&mut self, force: Vector2) {
-        self.acceleration += force;
-    }
-
     fn apply_thrust(&mut self) {
         let thrust = vector_from_angle(self.heading) * 0.1;
-        self.apply_force(thrust);
+        self.body.apply_force(thrust);
     }
 
     fn turn_left(&mut self) {
@@ -48,40 +111,55 @@ impl Jetman {
         self.heading += 0.1;
     }
 
-    fn update(&mut self) {
-        self.velocity += self.acceleration;
-        self.position += self.velocity;
-        self.acceleration *= 0.0;
+    fn draw(&self, d: &mut RaylibDrawHandle) {
+        let position = self.body.position;
+        d.draw_circle_v(position, 10.0, Color::LIGHTBLUE);
+        d.draw_circle_lines(position.x as i32, position.y as i32, 10.0, Color::BLUE);
+        let tip = position + vector_from_angle(self.heading) * 20.0;
+        d.draw_line_v(position, tip, Color::RED);
+    }
+}
+
+impl Bodied for Jetman {
+    fn body(&self) -> &Body {
+        &self.body
     }
 
-    fn draw(&self, d: &mut RaylibDrawHandle) {
-        d.draw_circle_v(self.position, 10.0, Color::LIGHTBLUE);
-        d.draw_circle_lines(self.position.x as i32, self.position.y as i32, 10.0, Color::BLUE);
-        let tip = self.position + vector_from_angle(self.heading) * 20.0;
-        d.draw_line_v(self.position, tip, Color::RED);
+    fn body_mut(&mut self) -> &mut Body {
+        &mut self.body
     }
 }
 
 struct Item {
-    position: Vector2,
+    body: Body,
 }
 
 impl Item {
     fn new(x: f32, y: f32) -> Self {
         Item {
-            position: Vector2::new(x, y),
+            body: Body::new(Vector2::new(x, y), 1.0),
         }
     }
 
     fn draw(&self, d: &mut RaylibDrawHandle) {
-        d.draw_rectangle(self.position.x as i32 - 15, self.position.y as i32 - 10, 30, 20, Color::LIGHTGRAY);
+        d.draw_rectangle(self.body.position.x as i32 - 15, self.body.position.y as i32 - 10, 30, 20, Color::LIGHTGRAY);
+    }
+}
+
+impl Bodied for Item {
+    fn body(&self) -> &Body {
+        &self.body
+    }
+
+    fn body_mut(&mut self) -> &mut Body {
+        &mut self.body
     }
 }
 
 struct World {
     jetman: Jetman,
     items: Vec<Item>,
-    gravity: f32,
+    gravity: Vector2,
 }
 
 impl World {
@@ -89,7 +167,7 @@ impl World {
         World {
             jetman: Jetman::new(),
             items: vec![Item::new(100.0, 200.0)],
-            gravity: 0.01,
+            gravity: Vector2::new(0.0, 0.01),
         }
     }
 
@@ -103,14 +181,19 @@ impl World {
         if is_right_down {
             self.jetman.turn_right();
         }
-        self.jetman.apply_force(Vector2::new(0.0, self.gravity));
+
+        self.jetman.apply_force(self.gravity);
         self.jetman.update();
-        for (id, item) in self.items.iter().enumerate() {
-            let diff = item.position - self.jetman.position;
+        
+        for (id, item) in self.items.iter_mut().enumerate() {
+            let diff = item.position() - self.jetman.position();
             let distance = diff.length();
             if distance < 20.0 {
                 self.jetman.linked_item = Some(ItemId(id));
             }
+
+            item.apply_force(self.gravity);
+            item.update();
         }
     }
 
@@ -122,7 +205,7 @@ impl World {
         self.jetman.draw(d);
         if let Some(item_id) = self.jetman.linked_item {
             let item = &self.items[item_id.0 as usize];
-            d.draw_line_v(self.jetman.position, item.position, Color::GREEN);
+            d.draw_line_v(self.jetman.position(), item.position(), Color::GREEN);
         }
     }
 }
