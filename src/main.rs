@@ -88,6 +88,7 @@ struct Jetman {
     heading: f32,
     link_distance: f32,
     linked_item: Option<ItemId>,
+    thrusting: i32,
 }
 
 impl Jetman {
@@ -97,12 +98,14 @@ impl Jetman {
             heading: 0.0,
             link_distance: 50.0,
             linked_item: None,
+            thrusting: 0,
         }
     }
 
     fn apply_thrust(&mut self) {
         let thrust = vector_from_angle(self.heading) * 0.1;
         self.body.apply_force(thrust);
+        self.thrusting = 2;
     }
 
     fn turn_left(&mut self) {
@@ -113,12 +116,23 @@ impl Jetman {
         self.heading += 0.1;
     }
 
+    fn update(&mut self) {
+        self.body.update();
+        self.thrusting -= 1;
+    }
+
     fn draw(&self, d: &mut RaylibDrawHandle) {
         let position = self.body.position;
-        d.draw_circle_v(position, 10.0, Color::LIGHTBLUE);
-        d.draw_circle_lines(position.x as i32, position.y as i32, 10.0, Color::BLUE);
-        let tip = position + vector_from_angle(self.heading) * 20.0;
-        d.draw_line_v(position, tip, Color::RED);
+        d.draw_circle_v(position, 10.0, Color::from_hex("807CF4").unwrap());
+        d.draw_circle_lines(position.x as i32, position.y as i32, 10.0, Color::from_hex("3524E3").unwrap());
+        let tip = position + vector_from_angle(self.heading) * 8.0;
+        d.draw_ellipse(tip.x as i32, tip.y as i32, 4.0, 4.0, Color::WHITESMOKE);
+        if self.thrusting > 0 {
+            // draw an orange flame (an ellipse) at the back of the jetman
+            let flame = position - vector_from_angle(self.heading) * 10.0;
+            d.draw_ellipse(flame.x as i32, flame.y as i32, 4.0, 8.0, Color::ORANGE);
+            
+        }
     }
 }
 
@@ -209,7 +223,7 @@ impl World {
             let delta = item_pos - jetman_pos;
             let distance = delta.length();
 
-            let rest_length = 10.0;
+            let rest_length = self.jetman.link_distance;
             if distance != 0.0 {
                 let direction = delta / distance;
                 let correction = direction * (distance - rest_length);
