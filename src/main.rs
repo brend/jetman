@@ -78,10 +78,6 @@ trait Bodied {
         self.body().velocity
     }
 
-    fn acceleration(&self) -> Vector2 {
-        self.body().acceleration
-    }
-
     fn mass(&self) -> f32 {
         self.body().mass
     }
@@ -182,21 +178,41 @@ impl Bodied for Item {
     }
 }
 
+/// A teleporter that allows Jetman to drop items.
+struct Teleporter {
+    position: Vector2,
+}
+
+impl Teleporter {
+    fn new(position: Vector2) -> Self {
+        Teleporter { position }
+    }
+
+    fn draw(&self, d: &mut RaylibDrawHandle) {
+        d.draw_circle_v(self.position, 10.0, Color::PALEGOLDENROD);
+    }
+}
+
+/// The game world.
 struct World {
     jetman: Jetman,
     items: Vec<Item>,
+    teleports: Vec<Teleporter>,
     gravity: Vector2,
 }
 
 impl World {
+    /// Create a new game world.
     fn new() -> Self {
         World {
             jetman: Jetman::new(),
             items: vec![Item::new(100.0, 200.0)],
+            teleports: vec![Teleporter::new(Vector2::new(400.0, 300.0))],
             gravity: Vector2::new(0.0, 0.01),
         }
     }
 
+    /// Update the game world.
     fn update(&mut self, input: &InputState) {
         if input.thrust {
             self.jetman.apply_thrust();
@@ -210,6 +226,26 @@ impl World {
     
         // Apply gravity to Jetman
         self.jetman.apply_force(self.gravity);
+
+        // Check if item has been dropped into teleporter
+        if let Some(item_id) = self.jetman.linked_item {
+            let item = &mut self.items[item_id.0];
+            let mut teleporting = false;
+            for teleport in &self.teleports {
+                let diff = item.position() - teleport.position;
+                let distance = diff.length();
+                if distance < 10.0 {
+                    item.body_mut().position = Vector2::new(100.0, 200.0);
+                    item.clear_forces();
+                    teleporting = true;
+                    break;
+                }
+            }
+            if teleporting {
+                self.jetman.linked_item = None;
+                self.items.remove(item_id.0);
+            }
+        }
     
         // Check for linking with items
         let jetman_pos = self.jetman.position();
@@ -267,12 +303,21 @@ impl World {
         }
     }
 
+    /// Draw the game world.
     fn draw(&self, d: &mut RaylibDrawHandle) {
+        // clear the screen
         d.clear_background(Color::BLACK);
+        // draw the teleporters
+        for teleport in &self.teleports {
+            teleport.draw(d);
+        }
+        // draw the items
         for item in &self.items {
             item.draw(d);
         }
+        // draw the Jetman
         self.jetman.draw(d);
+        // draw the link between Jetman and the item he's linked with
         if let Some(item_id) = self.jetman.linked_item {
             let item = &self.items[item_id.0];
             d.draw_line_ex(self.jetman.position(), item.position(), 3.0, Color::YELLOWGREEN);
@@ -280,14 +325,20 @@ impl World {
     }
 }
 
+/// The state of the player's input.
 struct InputState {
+    /// Whether the player is thrusting.
     thrust: bool,
+    /// Whether the player is turning left.
     turn_left: bool,
+    /// Whether the player is turning right.
     turn_right: bool,
+    /// Whether the player is severing the link between Jetman and the Item he's linked with.
     sever_link: bool,
 }
 
 impl InputState {
+    /// Create an `InputState` from the current state of the keyboard.
     fn from_raylib(rl: &RaylibHandle) -> Self {
         InputState {
             thrust: rl.is_key_down(KeyboardKey::KEY_SPACE),
