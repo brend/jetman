@@ -310,8 +310,28 @@ fn main() {
 
     while !rl.window_should_close() {
         let input = InputState::from_raylib(&rl);
+        let fps = rl.get_fps();
         let mut d = rl.begin_drawing(&thread);
         world.update(&input);
         world.draw(&mut d);
+        visualize_input(&input, &mut d);
+        visualize_fps(fps, &mut d);
     }
+}
+
+fn visualize_input(input: &InputState, d: &mut RaylibDrawHandle) {
+    let mut y = 10;
+    let x = 10;
+    let spacing = 20;
+    y += spacing;
+    d.draw_text("^=>", x, y, 20, if input.thrust { Color::WHITE } else { Color::GRAY });
+    y += spacing;
+    d.draw_text("<", x, y, 20, if input.turn_left { Color::WHITE } else { Color::GRAY });
+    d.draw_text(">", x + 20, y, 20, if input.turn_right { Color::WHITE } else { Color::GRAY });
+    y += spacing;
+    d.draw_text("X", x, y, 20, if input.sever_link { Color::WHITE } else { Color::GRAY });
+}
+
+fn visualize_fps(fps: u32, d: &mut RaylibDrawHandle) {
+    d.draw_text(&format!("FPS: {}", fps), 10, 10, 20, Color::WHITE);
 }
