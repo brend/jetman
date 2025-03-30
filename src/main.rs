@@ -341,10 +341,10 @@ impl InputState {
     /// Create an `InputState` from the current state of the keyboard.
     fn from_raylib(rl: &RaylibHandle) -> Self {
         InputState {
-            thrust: rl.is_key_down(KeyboardKey::KEY_SPACE),
-            turn_left: rl.is_key_down(KeyboardKey::KEY_LEFT),
-            turn_right: rl.is_key_down(KeyboardKey::KEY_RIGHT),
-            sever_link: rl.is_key_pressed(KeyboardKey::KEY_S),
+            thrust: rl.is_key_down(KeyboardKey::KEY_UP) || rl.is_key_down(KeyboardKey::KEY_W),
+            turn_left: rl.is_key_down(KeyboardKey::KEY_LEFT) || rl.is_key_down(KeyboardKey::KEY_A),
+            turn_right: rl.is_key_down(KeyboardKey::KEY_RIGHT) || rl.is_key_down(KeyboardKey::KEY_D),
+            sever_link: rl.is_key_pressed(KeyboardKey::KEY_S) || rl.is_key_pressed(KeyboardKey::KEY_S),
         }
     }
 }
