@@ -2,8 +2,10 @@
 
 A tiny ship navigation the vast of space.
 
-<img src="assets/screen.gif">
-
+<figure>
+<img src="assets/screen.gif" alt="animation showing the jet pod towing an item">
+    <figcaption>The Jet Pod tows an item</figcaption>
+</figure>
 ## Run Jetman
 
 [Install the Rust tools](https://www.rust-lang.org/tools/install):
