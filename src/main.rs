@@ -36,10 +36,10 @@ impl Body {
     }
 
     /// Update the body's position based on its velocity and acceleration.
-    fn update(&mut self) {
-        self.velocity += self.acceleration;
-        self.position += self.velocity;
-        self.acceleration *= 0.0;
+    fn update(&mut self, dt: f32) {
+        self.velocity += self.acceleration * dt;
+        self.position += self.velocity * dt;
+        self.acceleration = Vec2::ZERO;
     }
 }
 
@@ -61,8 +61,8 @@ trait Bodied {
     }
 
     /// Update the body's position based on its velocity and acceleration.
-    fn update(&mut self) {
-        self.body_mut().update();
+    fn update(&mut self, dt: f32) {
+        self.body_mut().update(dt);
     }
 
     fn position(&self) -> Vec2 {
@@ -114,8 +114,8 @@ impl Jetman {
         self.heading += 0.1;
     }
 
-    fn update(&mut self) {
-        self.body.update();
+    fn update(&mut self, dt: f32) {
+        self.body.update(dt);
         self.thrusting -= 1;
     }
 
@@ -212,6 +212,8 @@ impl World {
 
     /// Update the game world.
     fn update(&mut self, input: &InputState) {
+        let dt = get_frame_time() * 20.0;
+
         if input.thrust {
             self.jetman.apply_thrust();
         }
@@ -295,9 +297,9 @@ impl World {
         }
 
         // Update physics
-        self.jetman.update();
+        self.jetman.update(dt);
         for item in self.items.iter_mut() {
-            item.update();
+            item.update(dt);
         }
     }
 
