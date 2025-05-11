@@ -8,5 +8,5 @@ inherits = "release"
 debug = true
 
 [dependencies]
-raylib = "5.0.0"
+macroquad = "0.4.14"
 rand = "0.8.4"

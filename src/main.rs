@@ -1,36 +1,31 @@
-use raylib::prelude::*;
+use macroquad::prelude::*;
 
-const SCREEN_WIDTH: i32 = 800;
-const SCREEN_HEIGHT: i32 = 600;
-
-const TITLE: &str = "Jetman";
-
-fn vector_from_angle(angle: f32) -> Vector2 {
-    Vector2::new(angle.cos(), angle.sin())
+fn vector_from_angle(angle: f32) -> Vec2 {
+    Vec2::new(angle.cos(), angle.sin())
 }
 
 /// A physics body.
 #[derive(Clone, Copy)]
 struct Body {
-    position: Vector2,
-    velocity: Vector2,
-    acceleration: Vector2,
+    position: Vec2,
+    velocity: Vec2,
+    acceleration: Vec2,
     mass: f32,
 }
 
 impl Body {
     /// Create a new body.
-    fn new(position: Vector2, mass: f32) -> Self {
+    fn new(position: Vec2, mass: f32) -> Self {
         Body {
             position,
-            velocity: Vector2::new(0.0, 0.0),
-            acceleration: Vector2::new(0.0, 0.0),
+            velocity: Vec2::new(0.0, 0.0),
+            acceleration: Vec2::new(0.0, 0.0),
             mass,
         }
     }
 
     /// Apply a force to the body.
-    fn apply_force(&mut self, force: Vector2) {
+    fn apply_force(&mut self, force: Vec2) {
         self.acceleration += force / self.mass;
     }
 
@@ -56,7 +51,7 @@ trait Bodied {
     fn body_mut(&mut self) -> &mut Body;
 
     /// Apply a force to the body.
-    fn apply_force(&mut self, force: Vector2) {
+    fn apply_force(&mut self, force: Vec2) {
         self.body_mut().apply_force(force);
     }
 
@@ -70,11 +65,11 @@ trait Bodied {
         self.body_mut().update();
     }
 
-    fn position(&self) -> Vector2 {
+    fn position(&self) -> Vec2 {
         self.body().position
     }
 
-    fn velocity(&self) -> Vector2 {
+    fn velocity(&self) -> Vec2 {
         self.body().velocity
     }
 
@@ -97,7 +92,7 @@ struct Jetman {
 impl Jetman {
     fn new() -> Self {
         Jetman {
-            body: Body::new(Vector2::new(200.0, 200.0), 1.0),
+            body: Body::new(Vec2::new(200.0, 200.0), 1.0),
             heading: 0.0,
             link_distance: 50.0,
             linked_item: None,
@@ -124,17 +119,17 @@ impl Jetman {
         self.thrusting -= 1;
     }
 
-    fn draw(&self, d: &mut RaylibDrawHandle) {
+    fn draw(&self) {
         let position = self.body.position;
         let dir = vector_from_angle(self.heading);
         let tip = position + dir * 8.0;
-        d.draw_circle_v(position, 10.0, Color::from_hex("807CF4").unwrap());
-        d.draw_circle_lines(position.x as i32, position.y as i32, 10.0, Color::from_hex("3524E3").unwrap());
-        d.draw_ellipse(tip.x as i32, tip.y as i32, 4.0, 4.0, Color::WHITESMOKE);
+        draw_circle(position.x, position.y, 10.0, Color::from_hex(0x807CF4));
+        draw_circle_lines(position.x, position.y, 10.0, 1.0, Color::from_hex(0x3524E3));
+        draw_ellipse(tip.x, tip.y, 4.0, 4.0, 0.0, WHITE);
         if self.thrusting > 0 {
             // draw an orange flame (an ellipse) at the back of the jetman
             let flame = position - dir * 10.0;
-            d.draw_ellipse(flame.x as i32, flame.y as i32, 4.0, 8.0, Color::ORANGE);
+            draw_ellipse(flame.x, flame.y, 4.0, 8.0, 0.0, ORANGE);
         }
     }
 }
@@ -156,15 +151,18 @@ struct Item {
 impl Item {
     fn new(x: f32, y: f32) -> Self {
         Item {
-            body: Body::new(Vector2::new(x, y), 1.0),
+            body: Body::new(Vec2::new(x, y), 1.0),
         }
     }
 
-    fn draw(&self, d: &mut RaylibDrawHandle) {
-        d.draw_rectangle(
-            self.body.position.x as i32 - 15, 
-            self.body.position.y as i32 - 10, 
-            30, 20, Color::LIGHTGRAY);
+    fn draw(&self) {
+        draw_rectangle(
+            self.body.position.x - 15.0,
+            self.body.position.y - 10.0,
+            30.0,
+            20.0,
+            LIGHTGRAY,
+        );
     }
 }
 
@@ -180,16 +178,16 @@ impl Bodied for Item {
 
 /// A teleporter that allows Jetman to drop items.
 struct Teleporter {
-    position: Vector2,
+    position: Vec2,
 }
 
 impl Teleporter {
-    fn new(position: Vector2) -> Self {
+    fn new(position: Vec2) -> Self {
         Teleporter { position }
     }
 
-    fn draw(&self, d: &mut RaylibDrawHandle) {
-        d.draw_circle_v(self.position, 10.0, Color::PALEGOLDENROD);
+    fn draw(&self) {
+        draw_circle(self.position.x, self.position.y, 10.0, YELLOW);
     }
 }
 
@@ -198,7 +196,7 @@ struct World {
     jetman: Jetman,
     items: Vec<Item>,
     teleports: Vec<Teleporter>,
-    gravity: Vector2,
+    gravity: Vec2,
 }
 
 impl World {
@@ -207,8 +205,8 @@ impl World {
         World {
             jetman: Jetman::new(),
             items: vec![Item::new(100.0, 200.0)],
-            teleports: vec![Teleporter::new(Vector2::new(400.0, 300.0))],
-            gravity: Vector2::new(0.0, 0.01),
+            teleports: vec![Teleporter::new(Vec2::new(400.0, 300.0))],
+            gravity: Vec2::new(0.0, 0.01),
         }
     }
 
@@ -223,7 +221,7 @@ impl World {
         if input.turn_right {
             self.jetman.turn_right();
         }
-    
+
         // Apply gravity to Jetman
         self.jetman.apply_force(self.gravity);
 
@@ -235,7 +233,7 @@ impl World {
                 let diff = item.position() - teleport.position;
                 let distance = diff.length();
                 if distance < 10.0 {
-                    item.body_mut().position = Vector2::new(100.0, 200.0);
+                    item.body_mut().position = Vec2::new(100.0, 200.0);
                     item.clear_forces();
                     teleporting = true;
                     break;
@@ -246,7 +244,7 @@ impl World {
                 self.items.remove(item_id.0);
             }
         }
-    
+
         // Check for linking with items
         let jetman_pos = self.jetman.position();
         for (id, item) in self.items.iter_mut().enumerate() {
@@ -264,7 +262,7 @@ impl World {
                 self.items[item_id.0].clear_forces();
             }
         }
-    
+
         // Enforce rigid connection if Jetman is linked to an item
         if let Some(ItemId(id)) = self.jetman.linked_item {
             let item = &mut self.items[id];
@@ -295,7 +293,7 @@ impl World {
                 item.body_mut().velocity -= velocity_correction * item_ratio;
             }
         }
-    
+
         // Update physics
         self.jetman.update();
         for item in self.items.iter_mut() {
@@ -304,23 +302,25 @@ impl World {
     }
 
     /// Draw the game world.
-    fn draw(&self, d: &mut RaylibDrawHandle) {
+    fn draw(&self) {
         // clear the screen
-        d.clear_background(Color::BLACK);
+        clear_background(BLACK);
         // draw the teleporters
         for teleport in &self.teleports {
-            teleport.draw(d);
+            teleport.draw();
         }
         // draw the items
         for item in &self.items {
-            item.draw(d);
+            item.draw();
         }
         // draw the Jetman
-        self.jetman.draw(d);
+        self.jetman.draw();
         // draw the link between Jetman and the item he's linked with
         if let Some(item_id) = self.jetman.linked_item {
             let item = &self.items[item_id.0];
-            d.draw_line_ex(self.jetman.position(), item.position(), 3.0, Color::YELLOWGREEN);
+            let jp = self.jetman.position();
+            let ip = item.position();
+            draw_line(jp.x, jp.y, ip.x, ip.y, 3.0, GREEN);
         }
     }
 }
@@ -339,50 +339,50 @@ struct InputState {
 
 impl InputState {
     /// Create an `InputState` from the current state of the keyboard.
-    fn from_raylib(rl: &RaylibHandle) -> Self {
+    fn from_raylib() -> Self {
         InputState {
-            thrust: rl.is_key_down(KeyboardKey::KEY_UP) || rl.is_key_down(KeyboardKey::KEY_W),
-            turn_left: rl.is_key_down(KeyboardKey::KEY_LEFT) || rl.is_key_down(KeyboardKey::KEY_A),
-            turn_right: rl.is_key_down(KeyboardKey::KEY_RIGHT) || rl.is_key_down(KeyboardKey::KEY_D),
-            sever_link: rl.is_key_pressed(KeyboardKey::KEY_S) || rl.is_key_pressed(KeyboardKey::KEY_S),
+            thrust: is_key_down(KeyCode::Up) || is_key_down(KeyCode::W),
+            turn_left: is_key_down(KeyCode::Left) || is_key_down(KeyCode::A),
+            turn_right: is_key_down(KeyCode::Right) || is_key_down(KeyCode::D),
+            sever_link: is_key_pressed(KeyCode::S) || is_key_pressed(KeyCode::S),
         }
     }
 }
 
-fn main() {
-    let (mut rl, thread) = raylib::init()
-        .size(SCREEN_WIDTH, SCREEN_HEIGHT)
-        .title(TITLE)
-        .build();
-
-    rl.set_target_fps(30);
-
+#[macroquad::main("Jetman")]
+async fn main() {
     let mut world = World::new();
 
-    while !rl.window_should_close() {
-        let input = InputState::from_raylib(&rl);
-        let fps = rl.get_fps();
-        let mut d = rl.begin_drawing(&thread);
+    loop {
+        let input = InputState::from_raylib();
+        let fps = 1;
         world.update(&input);
-        world.draw(&mut d);
-        visualize_input(&input, &mut d);
-        visualize_fps(fps, &mut d);
+        world.draw();
+        visualize_input(&input);
+        visualize_fps(fps);
+        next_frame().await;
     }
 }
 
-fn visualize_input(input: &InputState, d: &mut RaylibDrawHandle) {
-    let mut y = 10;
-    let x = 10;
-    let spacing = 20;
+fn visualize_input(input: &InputState) {
+    let mut y = 10.0;
+    let x = 10.0;
+    let spacing = 20.0;
     y += spacing;
-    d.draw_text("^=>", x, y, 20, if input.thrust { Color::WHITE } else { Color::GRAY });
+    draw_text("^=>", x, y, 20.0, if input.thrust { WHITE } else { GRAY });
     y += spacing;
-    d.draw_text("<", x, y, 20, if input.turn_left { Color::WHITE } else { Color::GRAY });
-    d.draw_text(">", x + 20, y, 20, if input.turn_right { Color::WHITE } else { Color::GRAY });
+    draw_text("<", x, y, 20.0, if input.turn_left { WHITE } else { GRAY });
+    draw_text(
+        ">",
+        x + 20.0,
+        y,
+        20.0,
+        if input.turn_right { WHITE } else { GRAY },
+    );
     y += spacing;
-    d.draw_text("X", x, y, 20, if input.sever_link { Color::WHITE } else { Color::GRAY });
+    draw_text("X", x, y, 20.0, if input.sever_link { WHITE } else { GRAY });
 }
 
-fn visualize_fps(fps: u32, d: &mut RaylibDrawHandle) {
-    d.draw_text(&format!("FPS: {}", fps), 10, 10, 20, Color::WHITE);
+fn visualize_fps(fps: u32) {
+    draw_text(&format!("FPS: {}", fps), 10.0, 10.0, 20.0, WHITE);
 }
