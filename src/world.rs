@@ -4,7 +4,7 @@ use crate::physics::*;
 use crate::terrain::{Terrain, check_collision};
 use crate::ui::InputState;
 
-/// The game world.
+/// The game world containing physics bodies and terrains
 pub struct World {
     jetman: Jetman,
     items: Vec<Item>,
@@ -14,7 +14,7 @@ pub struct World {
 }
 
 impl World {
-    /// Create a new game world.
+    /// Create a new game world
     pub fn new() -> Self {
         World {
             jetman: Jetman::new(),
@@ -28,7 +28,7 @@ impl World {
         }
     }
 
-    /// Update the game world.
+    /// Update the game world
     pub fn update(&mut self, input: &InputState) {
         let dt = get_frame_time() * 20.0;
 
@@ -129,7 +129,7 @@ impl World {
         }
     }
 
-    /// Draw the game world.
+    /// Draw the game world
     pub fn draw(&self) {
         // clear the screen
         clear_background(BLACK);
@@ -159,6 +159,7 @@ impl World {
 }
 
 impl Default for World {
+    /// Create a game world instance using default values
     fn default() -> Self {
         World::new()
     }

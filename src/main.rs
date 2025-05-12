@@ -3,6 +3,7 @@ use macroquad::prelude::*;
 use jetman::ui::InputState;
 use jetman::world::World;
 
+/// Entry point of the jetman application
 #[macroquad::main("Jetman")]
 async fn main() {
     let mut world = World::new();
@@ -18,6 +19,7 @@ async fn main() {
     }
 }
 
+/// Draw an HUD visualizing user input
 fn visualize_input(input: &InputState) {
     let mut y = 10.0;
     let x = 10.0;
@@ -37,6 +39,7 @@ fn visualize_input(input: &InputState) {
     draw_text("X", x, y, 20.0, if input.sever_link { WHITE } else { GRAY });
 }
 
+/// Draw an HUD visualizing the frame rate
 fn visualize_fps(fps: u32) {
     draw_text(&format!("FPS: {}", fps), 10.0, 10.0, 20.0, WHITE);
 }

@@ -2,29 +2,44 @@ use macroquad::prelude::*;
 
 use crate::physics::Body;
 
+/// Shape of a terrain element
 pub enum TerrainShape {
+    /// Rectangular terrain shape, axis-aligned
     Rectangle(Rect),
+    /// Linear terrain shape
     Line(Vec2, Vec2),
+    /// Circular terrain shape
     Circle(Vec2, f32),
 }
 
+/// A terrain element. Jetman can collide with these.
 pub struct Terrain {
     shape: TerrainShape,
 }
 
 impl Terrain {
+    /// Create an axis-aligned rectangular terrain
     pub fn rectangle(x: f32, y: f32, w: f32, h: f32) -> Self {
         Terrain {
             shape: TerrainShape::Rectangle(Rect::new(x, y, w, h)),
         }
     }
 
+    /// Create a linear terrain
     pub fn line(x1: f32, y1: f32, x2: f32, y2: f32) -> Self {
         Terrain {
             shape: TerrainShape::Line(Vec2::new(x1, y1), Vec2::new(x2, y2)),
         }
     }
 
+    /// Create a circular terrain
+    pub fn circle(x: f32, y: f32, r: f32) -> Self {
+        Terrain {
+            shape: TerrainShape::Circle(Vec2::new(x, y), r),
+        }
+    }
+
+    /// Draw the terrain element
     pub fn draw(&self) {
         match self.shape {
             TerrainShape::Rectangle(rect) => {
@@ -40,6 +55,8 @@ impl Terrain {
     }
 }
 
+/// Check for collisions between a body and a terrain
+/// and alter the body's position and velocity on collision
 pub fn check_collision(body: &mut Body, terrain: &Terrain) {
     match terrain.shape {
         TerrainShape::Rectangle(rect) => {
