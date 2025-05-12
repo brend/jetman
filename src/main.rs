@@ -197,6 +197,7 @@ struct World {
     items: Vec<Item>,
     teleports: Vec<Teleporter>,
     gravity: Vec2,
+    terrain: Vec<Terrain>,
 }
 
 impl World {
@@ -207,6 +208,10 @@ impl World {
             items: vec![Item::new(100.0, 200.0)],
             teleports: vec![Teleporter::new(Vec2::new(400.0, 300.0))],
             gravity: Vec2::new(0.0, 0.01),
+            terrain: vec![
+                Terrain::rectangle(300.0, 500.0, 200.0, 20.0),
+                Terrain::line(100.0, 100.0, 200.0, 400.0),
+            ],
         }
     }
 
@@ -301,12 +306,35 @@ impl World {
         for item in self.items.iter_mut() {
             item.update(dt);
         }
+
+        // Check for terrain collisions
+        for terrain in &self.terrain {
+            check_collision(&mut self.jetman.body, terrain);
+            for item in &mut self.items {
+                check_collision(&mut item.body, terrain);
+            }
+        }
     }
 
     /// Draw the game world.
     fn draw(&self) {
         // clear the screen
         clear_background(BLACK);
+
+        // draw the terrain
+        for terrain in &self.terrain {
+            match terrain.shape {
+                TerrainShape::Rectangle(rect) => {
+                    draw_rectangle(rect.x, rect.y, rect.w, rect.h, DARKGREEN);
+                }
+                TerrainShape::Line(a, b) => {
+                    draw_line(a.x, a.y, b.x, b.y, 4.0, DARKGREEN);
+                }
+                TerrainShape::Circle(c, r) => {
+                    draw_circle(c.x, c.y, r, DARKGREEN);
+                }
+            }
+        }
         // draw the teleporters
         for teleport in &self.teleports {
             teleport.draw();
@@ -387,4 +415,77 @@ fn visualize_input(input: &InputState) {
 
 fn visualize_fps(fps: u32) {
     draw_text(&format!("FPS: {}", fps), 10.0, 10.0, 20.0, WHITE);
+}
+
+enum TerrainShape {
+    Rectangle(Rect),
+    Line(Vec2, Vec2),
+    Circle(Vec2, f32),
+}
+
+struct Terrain {
+    shape: TerrainShape,
+}
+
+impl Terrain {
+    fn rectangle(x: f32, y: f32, w: f32, h: f32) -> Self {
+        Terrain {
+            shape: TerrainShape::Rectangle(Rect::new(x, y, w, h)),
+        }
+    }
+
+    fn line(x1: f32, y1: f32, x2: f32, y2: f32) -> Self {
+        Terrain {
+            shape: TerrainShape::Line(Vec2::new(x1, y1), Vec2::new(x2, y2)),
+        }
+    }
+}
+
+fn check_collision(body: &mut Body, terrain: &Terrain) {
+    match terrain.shape {
+        TerrainShape::Rectangle(rect) => {
+            let pos = body.position;
+            if pos.x > rect.x
+                && pos.x < rect.x + rect.w
+                && pos.y > rect.y
+                && pos.y < rect.y + rect.h
+            {
+                body.position.y = rect.y - 1.0;
+                body.velocity.y = -body.velocity.y * 0.5;
+            }
+        }
+        TerrainShape::Line(p1, p2) => {
+            let pos = body.position;
+            let line = p2 - p1;
+            let to_pos = pos - p1;
+            let len_sq = line.length_squared();
+            if len_sq == 0.0 {
+                return;
+            }
+
+            let t = (to_pos.dot(line) / len_sq).clamp(0.0, 1.0);
+            let closest = p1 + line * t;
+            let dist = (pos - closest).length();
+
+            if dist < 10.0 {
+                let normal = (pos - closest).normalize();
+                body.position = closest + normal * 10.0;
+                body.velocity -= 2.0 * body.velocity.dot(normal) * normal;
+                body.velocity *= 0.5;
+            }
+        }
+        TerrainShape::Circle(center, radius) => {
+            let pos = body.position;
+            let delta = pos - center;
+            let dist = delta.length();
+            let min_dist = radius + 10.0;
+
+            if dist < min_dist {
+                let normal = delta.normalize();
+                body.position = center + normal * min_dist;
+                body.velocity -= 2.0 * body.velocity.dot(normal) * normal;
+                body.velocity *= 0.5;
+            }
+        }
+    }
 }
