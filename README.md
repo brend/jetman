@@ -26,3 +26,11 @@ Run this from the project's root directory:
 ``` sh
 cargo run
 ```
+
+## Documentation
+
+Create the documentation by running
+
+```sh
+cargo doc
+```
