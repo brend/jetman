@@ -10,6 +10,8 @@ pub enum TerrainShape {
     Line(Vec2, Vec2),
     /// Circular terrain shape
     Circle(Vec2, f32),
+    /// Polygonal terrain shape
+    Polygon(Vec<Vec2>),
 }
 
 /// A terrain element. Jetman can collide with these.
@@ -39,6 +41,12 @@ impl Terrain {
         }
     }
 
+    pub fn polygon(segments: Vec<Vec2>) -> Self {
+        Terrain {
+            shape: TerrainShape::Polygon(segments),
+        }
+    }
+
     /// Draw the terrain element
     pub fn draw(&self) {
         match self.shape {
@@ -50,6 +58,13 @@ impl Terrain {
             }
             TerrainShape::Circle(c, r) => {
                 draw_circle(c.x, c.y, r, DARKGREEN);
+            }
+            TerrainShape::Polygon(ref points) => {
+                for i in 0..points.len() {
+                    let a = points[i];
+                    let b = points[(i + 1) % points.len()];
+                    draw_line(a.x, a.y, b.x, b.y, 2.0, LIME);
+                }
             }
         }
     }
@@ -103,5 +118,27 @@ pub fn check_collision(body: &mut Body, terrain: &Terrain) {
                 body.velocity *= 0.5;
             }
         }
+        TerrainShape::Polygon(ref vertices) => {
+            if point_in_polygon(body.position, vertices) {
+                body.position.y -= 2.0; // crude correction
+                body.velocity.y = -body.velocity.y * 0.5;
+            }
+        }
     }
+}
+
+fn point_in_polygon(point: Vec2, polygon: &[Vec2]) -> bool {
+    let mut inside = false;
+    let mut j = polygon.len() - 1;
+    for i in 0..polygon.len() {
+        let pi = polygon[i];
+        let pj = polygon[j];
+        if ((pi.y > point.y) != (pj.y > point.y))
+            && (point.x < (pj.x - pi.x) * (point.y - pi.y) / (pj.y - pi.y + 0.00001) + pi.x)
+        {
+            inside = !inside;
+        }
+        j = i;
+    }
+    inside
 }

@@ -16,15 +16,36 @@ pub struct World {
 impl World {
     /// Create a new game world
     pub fn new() -> Self {
+        let terrain = vec![
+            Terrain::polygon(vec![
+                Vec2::new(100.0, 550.0),
+                Vec2::new(200.0, 500.0),
+                Vec2::new(300.0, 530.0),
+                Vec2::new(250.0, 580.0),
+                Vec2::new(150.0, 600.0),
+            ]),
+            Terrain::polygon(vec![
+                Vec2::new(400.0, 500.0),
+                Vec2::new(450.0, 450.0),
+                Vec2::new(550.0, 460.0),
+                Vec2::new(580.0, 500.0),
+                Vec2::new(500.0, 520.0),
+            ]),
+            Terrain::polygon(vec![
+                Vec2::new(600.0, 570.0),
+                Vec2::new(650.0, 530.0),
+                Vec2::new(700.0, 540.0),
+                Vec2::new(680.0, 580.0),
+                Vec2::new(620.0, 600.0),
+            ]),
+        ];
+
         World {
             jetman: Jetman::new(),
             items: vec![Item::new(100.0, 200.0)],
             teleports: vec![Teleporter::new(Vec2::new(400.0, 300.0))],
             gravity: Vec2::new(0.0, 0.01),
-            terrain: vec![
-                Terrain::rectangle(300.0, 500.0, 200.0, 20.0),
-                Terrain::line(100.0, 100.0, 200.0, 400.0),
-            ],
+            terrain,
         }
     }
 
