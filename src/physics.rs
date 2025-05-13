@@ -141,15 +141,48 @@ impl Jetman {
     pub fn draw(&self) {
         let position = self.body.position;
         let dir = vector_from_angle(self.heading);
-        let tip = position + dir * 8.0;
-        draw_circle(position.x, position.y, 10.0, Color::from_hex(0x807CF4));
-        draw_circle_lines(position.x, position.y, 10.0, 1.0, Color::from_hex(0x3524E3));
-        draw_ellipse(tip.x, tip.y, 4.0, 4.0, 0.0, WHITE);
-        if self.thrusting > 0 {
-            // draw an orange flame (an ellipse) at the back of the jetman
-            let flame = position - dir * 10.0;
-            draw_ellipse(flame.x, flame.y, 4.0, 8.0, 0.0, ORANGE);
+        let right = vec2(-dir.y, dir.x);
+        let angle = self.heading.to_degrees() + 90.0;
+
+        // --- Thruster ---
+        if self.thrusting != 0 {
+            draw_ellipse(
+                position.x - dir.x * 4.0,
+                position.y - dir.y * 4.0,
+                10.0,
+                18.0,
+                angle,
+                ORANGE,
+            );
         }
+
+        // --- Main Pod (capsule-like body) ---
+        draw_ellipse(
+            position.x,
+            position.y,
+            10.0,
+            14.0,
+            angle,
+            Color::from_hex(0x4B3CF4),
+        ); // dark blue base
+        draw_ellipse_lines(
+            position.x,
+            position.y,
+            10.0,
+            14.0,
+            angle,
+            1.0,
+            Color::from_hex(0x3524E3),
+        ); // outline
+
+        // --- Highlight ---
+        let highlight_offset = dir * 4.0 + right * 1.0;
+        draw_circle(
+            (position + highlight_offset).x,
+            (position + highlight_offset).y,
+            6.0,
+            WHITE,
+        );
     }
 }
 
