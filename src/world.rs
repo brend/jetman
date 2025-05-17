@@ -28,11 +28,12 @@ fn generate_ground_poly(width: i32, height: i32, segments: usize) -> Vec<Vec2> {
 
 /// The game world containing physics bodies and terrains
 pub struct World {
-    jetman: Jetman,
+    pub jetman: Jetman,
     items: Vec<Item>,
     teleports: Vec<Teleporter>,
     gravity: Vec2,
     terrain: Vec<Terrain>,
+    camera: Camera2D,
 }
 
 impl World {
@@ -43,6 +44,11 @@ impl World {
             screen_height() as i32,
             12,
         ))];
+        let camera = Camera2D {
+            zoom: vec2(2.0 / screen_width(), 2.0 / screen_height()),
+            target: vec2(0.0, 0.0),
+            ..Default::default()
+        };
 
         World {
             jetman: Jetman::new(),
@@ -50,6 +56,7 @@ impl World {
             teleports: vec![Teleporter::new(Vec2::new(400.0, 300.0))],
             gravity: Vec2::new(0.0, 0.01),
             terrain,
+            camera,
         }
     }
 
@@ -152,10 +159,16 @@ impl World {
                 check_collision(&mut item.body, terrain);
             }
         }
+
+        // center the camera on the jet pod
+        let jetman_position = self.jetman_position();
+        self.camera.target.x = jetman_position.x;
+        self.camera.target.y = jetman_position.y;
+        set_camera(&self.camera);
     }
 
     /// Draw the game world
-    pub fn draw(&self) {
+    pub fn draw(&self, input: &InputState) {
         // clear the screen
         clear_background(BLACK);
 
@@ -180,6 +193,14 @@ impl World {
             let ip = item.position();
             draw_line(jp.x, jp.y, ip.x, ip.y, 3.0, GREEN);
         }
+
+        // draw thw HUD
+        set_default_camera();
+        visualize_input(input, &self.jetman);
+    }
+
+    pub fn jetman_position(&self) -> Vec2 {
+        self.jetman.position()
     }
 }
 
@@ -187,5 +208,42 @@ impl Default for World {
     /// Create a game world instance using default values
     fn default() -> Self {
         World::new()
+    }
+}
+
+/// Draw an HUD visualizing user input
+fn visualize_input(input: &InputState, jetman: &Jetman) {
+    let mut y = 10.0;
+    let x = 10.0;
+    let spacing = 20.0;
+    y += spacing;
+    draw_text("Press W for", x, y, 20.0, GRAY);
+    draw_text(
+        "THRUST",
+        x + 100.0,
+        y,
+        20.0,
+        if input.thrust { WHITE } else { GRAY },
+    );
+    y += spacing;
+    draw_text("Press A to turn     , D to turn", x, y, 20.0, GRAY);
+    draw_text(
+        "LEFT",
+        x + 140.0,
+        y,
+        20.0,
+        if input.turn_left { WHITE } else { GRAY },
+    );
+    draw_text(
+        "RIGHT",
+        x + 280.0,
+        y,
+        20.0,
+        if input.turn_right { WHITE } else { GRAY },
+    );
+
+    y += spacing;
+    if jetman.linked_item.is_some() {
+        draw_text("Press S to sever the tractor beam", x, y, 20.0, WHITE);
     }
 }
