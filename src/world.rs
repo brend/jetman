@@ -4,6 +4,28 @@ use crate::physics::*;
 use crate::terrain::{Terrain, check_collision};
 use crate::ui::InputState;
 
+fn generate_ground_poly(width: i32, height: i32, segments: usize) -> Vec<Vec2> {
+    let base_y = 500.0;
+    let mut top = vec![];
+
+    for i in 0..=segments {
+        let x = i as f32 * (width as f32 / segments as f32);
+        let y = base_y - macroquad::rand::gen_range(0.0, 80.0);
+        top.push(Vec2::new(x, y));
+    }
+
+    let bottom = (0..=segments)
+        .rev()
+        .map(|i| {
+            let x = i as f32 * (width as f32 / segments as f32);
+            Vec2::new(x, height as f32)
+        })
+        .collect::<Vec<_>>();
+
+    top.extend(bottom);
+    top
+}
+
 /// The game world containing physics bodies and terrains
 pub struct World {
     jetman: Jetman,
@@ -16,29 +38,11 @@ pub struct World {
 impl World {
     /// Create a new game world
     pub fn new() -> Self {
-        let terrain = vec![
-            Terrain::polygon(vec![
-                Vec2::new(100.0, 550.0),
-                Vec2::new(200.0, 500.0),
-                Vec2::new(300.0, 530.0),
-                Vec2::new(250.0, 580.0),
-                Vec2::new(150.0, 600.0),
-            ]),
-            Terrain::polygon(vec![
-                Vec2::new(400.0, 500.0),
-                Vec2::new(450.0, 450.0),
-                Vec2::new(550.0, 460.0),
-                Vec2::new(580.0, 500.0),
-                Vec2::new(500.0, 520.0),
-            ]),
-            Terrain::polygon(vec![
-                Vec2::new(600.0, 570.0),
-                Vec2::new(650.0, 530.0),
-                Vec2::new(700.0, 540.0),
-                Vec2::new(680.0, 580.0),
-                Vec2::new(620.0, 600.0),
-            ]),
-        ];
+        let terrain = vec![Terrain::polygon(generate_ground_poly(
+            screen_width() as i32,
+            screen_height() as i32,
+            12,
+        ))];
 
         World {
             jetman: Jetman::new(),
